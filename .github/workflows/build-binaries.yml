@@ -1,0 +1,102 @@
+# CLI binary builds.
+#
+# Starts whenever a release is published (the `release` event fires for
+# releases created with a PAT or by hand) and is also dispatched directly by
+# the release pipeline for releases created with the default GITHUB_TOKEN,
+# which do not emit `release` events. It checks out the release tag, builds
+# the CLI for every supported platform with CGO disabled, packs versioned
+# archives with the README and LICENSE, signs them with a checksums file and
+# uploads everything to the release.
+
+name: Build CLI binaries
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to build and upload (e.g. v1.2.3)'
+        required: true
+        type: string
+
+permissions:
+  contents: write # upload the binaries to the release
+
+concurrency:
+  group: build-binaries-${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Build and upload CLI binaries
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # Pure Go, CGO disabled: every target cross-compiles from the Linux
+      # runner. The -X flag stamps the release tag into needle.Version, so
+      # `needle --version` on a shipped binary reports its release.
+      - name: Build every platform
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          ldflags="-s -w -X github.com/FlameInTheDark/needle-go.Version=${TAG}"
+          targets=(
+            linux/amd64
+            linux/arm64
+            linux/386
+            linux/riscv64
+            windows/amd64
+            windows/arm64
+            windows/386
+            darwin/amd64
+            darwin/arm64
+          )
+          mkdir -p dist
+          for target in "${targets[@]}"; do
+            goos="${target%/*}"
+            goarch="${target#*/}"
+            name="needle_${version}_${goos}_${goarch}"
+            bin="needle"
+            if [ "${goos}" = "windows" ]; then
+              bin="needle.exe"
+            fi
+            stage="dist/${name}"
+            echo "::group::${goos}/${goarch}"
+            mkdir -p "${stage}"
+            CGO_ENABLED=0 GOOS="${goos}" GOARCH="${goarch}" \
+              go build -trimpath -ldflags "${ldflags}" -o "${stage}/${bin}" ./cmd/needle
+            cp README.md LICENSE "${stage}/"
+            if [ "${goos}" = "windows" ]; then
+              (cd dist && zip -q -r -9 "${name}.zip" "${name}")
+            else
+              (cd dist && tar -czf "${name}.tar.gz" "${name}")
+            fi
+            rm -rf "${stage}"
+            echo "::endgroup::"
+          done
+          (cd dist && sha256sum -- *.tar.gz *.zip > checksums.txt)
+          echo "Built archives:"
+          ls -l dist/
+
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${TAG}" dist/*.tar.gz dist/*.zip dist/checksums.txt --clobber
+          gh release view "${TAG}" --json name,tagName,assets

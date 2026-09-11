@@ -1,0 +1,122 @@
+# Release pipeline.
+#
+# On every push to main (which includes merged pull requests) the full test
+# suite must pass first. After the tests, semantic-release inspects the
+# conventional-commit history since the last release, and — when there is
+# something to release — creates the versioned tag and GitHub release with
+# generated notes (see .releaserc.json).
+#
+# Creating a release is the signal to build the CLI binaries. Releases made
+# with the default GITHUB_TOKEN do not emit `release` events (GitHub's
+# recursion guard), so the binary build workflow is dispatched explicitly
+# afterwards; when semantic-release runs with a PAT the release event fires
+# the build workflow on its own.
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write # create the release and tag
+  issues: write # comment on referenced issues
+  pull-requests: write # comment on referenced pull requests
+  actions: write # dispatch the CLI binary build workflow
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Vet
+        run: go vet ./...
+
+      # The engine lives in ~/.cache/needle-go/v<gen>/<engine version>; the
+      # pinned engine version lives in fetch/platform.go, so hashing that
+      # file gives a cache key that rotates exactly when the pin changes.
+      - name: Restore engine cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/needle-go
+          key: needle-engine-${{ runner.os }}-${{ hashFiles('fetch/platform.go') }}
+          restore-keys: |
+            needle-engine-${{ runner.os }}-
+
+      - name: Fetch base weights for the worker tests
+        run: |
+          mkdir -p build
+          curl -fL --retry 3 -o build/needle2.cact \
+            https://huggingface.co/Cactus-Compute/needle2/resolve/main/needle2.cact
+
+      - name: Test
+        env:
+          NEEDLE_TEST_WEIGHTS: ${{ github.workspace }}/build/needle2.cact
+        run: go test -race ./...
+
+  release:
+    name: semantic-release
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      # Full history: the commit analyzer walks everything since the last
+      # release tag, and the first run bootstraps from the root commit.
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run semantic-release
+        id: semrel
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          semantic_version: 24
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Dispatch the CLI binary build
+        if: steps.semrel.outputs.new_release_published == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ steps.semrel.outputs.new_release_version }}
+        run: |
+          set -euo pipefail
+          # A release created with the default GITHUB_TOKEN does not emit
+          # `release` events (GitHub's recursion guard), so the binary build
+          # has to be dispatched explicitly. Releases created with a PAT
+          # already trigger "Build CLI binaries" through their release
+          # event; checking the release creator keeps it from building twice.
+          creator=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" \
+            --jq '.creator.login // empty' 2>/dev/null || true)
+          if [ -z "${creator}" ] || [ "${creator}" = "github-actions[bot]" ]; then
+            gh workflow run build-binaries.yml --ref "${GITHUB_REF_NAME}" -f tag="${TAG}"
+            echo "Dispatched build-binaries.yml for ${TAG}"
+          else
+            echo "Release ${TAG} was created by '${creator}'; its release event triggers the binary build."
+          fi

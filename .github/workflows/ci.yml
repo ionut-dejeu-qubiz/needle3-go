@@ -1,0 +1,79 @@
+# Continuous integration.
+#
+# Runs the quality gates on every push to main and every pull request that
+# targets main: gofmt, go vet and the full test suite. Tests execute on both
+# Linux and Windows against the real native engine — it is downloaded from
+# the Hugging Face Hub on first use (or restored from the Actions cache) —
+# and the worker-process tests run against the base weights pulled below.
+# Engine-dependent tests skip gracefully only when the engine cannot be
+# resolved at all.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "The following files need 'gofmt -w':"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      # The engine lives in ~/.cache/needle-go/v<gen>/<engine version>; the
+      # pinned engine version lives in fetch/platform.go, so hashing that
+      # file gives a cache key that rotates exactly when the pin changes.
+      - name: Restore engine cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/needle-go
+          key: needle-engine-${{ runner.os }}-${{ hashFiles('fetch/platform.go') }}
+          restore-keys: |
+            needle-engine-${{ runner.os }}-
+
+      - name: Fetch base weights for the worker tests
+        run: |
+          mkdir -p build
+          curl -fL --retry 3 -o build/needle2.cact \
+            https://huggingface.co/Cactus-Compute/needle2/resolve/main/needle2.cact
+
+      - name: Test
+        env:
+          NEEDLE_TEST_WEIGHTS: ${{ github.workspace }}/build/needle2.cact
+        run: go test -race ./...

@@ -1,0 +1,9 @@
+# build artifacts
+/needle
+/needle.exe
+*.test
+/dist/
+
+# generated at runtime
+*.idx
+*.part
