@@ -10,6 +10,7 @@ type Option func(*agentConfig)
 type agentConfig struct {
 	toolsSource   any
 	system        string
+	generation    int
 	weightsPath   string
 	toolIndexPath string
 	bufSize       int
@@ -18,13 +19,19 @@ type agentConfig struct {
 }
 
 func newConfig(opts []Option) *agentConfig {
-	cfg := &agentConfig{bufSize: 65536}
+	cfg := &agentConfig{bufSize: 65536, generation: EngineGeneration}
 	for _, opt := range opts {
 		if opt != nil {
 			opt(cfg)
 		}
 	}
 	return cfg
+}
+
+// WithGeneration selects the base Needle engine generation. WithWeights uses
+// the generation encoded in the archive instead.
+func WithGeneration(generation int) Option {
+	return func(c *agentConfig) { c.generation = generation }
 }
 
 // WithTools declares the agent's toolset. Accepted forms:
@@ -135,11 +142,18 @@ type ExtractOption func(*extractConfig)
 
 type extractConfig struct {
 	system       string
+	generation   int
 	maxNewTokens int
 	strict       *bool
 	weightsPath  string
 	enginePath   string
 	logger       *slog.Logger
+}
+
+// ExtractGeneration selects the base Needle engine generation for extraction.
+// ExtractWeights uses the generation encoded in the archive instead.
+func ExtractGeneration(generation int) ExtractOption {
+	return func(c *extractConfig) { c.generation = generation }
 }
 
 // ExtractSystem attaches system facts to a one-shot extraction.

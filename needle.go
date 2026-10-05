@@ -1,5 +1,5 @@
-// Package needle is a pure-Go client for the Needle 2 on-device model: a
-// 45M-parameter tool-calling engine that ships as a single ~14MB native
+// Package needle is a pure-Go client for the Needle on-device models: a
+// tool-calling engine that ships as a single native
 // library and runs a full session in about 28MB of RAM - pure Go toolchain,
 // no cgo, one dependency (purego) for dlopen/LoadLibrary.
 //
@@ -58,7 +58,7 @@ func New(opts ...Option) (*Agent, error) {
 	a := &Agent{
 		system:        cfg.system,
 		weightsPath:   cfg.weightsPath,
-		generation:    EngineGeneration,
+		generation:    cfg.generation,
 		toolIndexPath: cfg.toolIndexPath,
 		bufSize:       cfg.bufSize,
 		enginePath:    cfg.enginePath,
@@ -86,6 +86,8 @@ func New(opts ...Option) (*Agent, error) {
 		}
 		a.generation = gen
 		a.tuned = true
+	} else if _, err := fetch.EngineRepo(a.generation); err != nil {
+		return nil, err
 	}
 	return a, nil
 }
@@ -101,8 +103,8 @@ func (a *Agent) Tools() []string {
 	return names
 }
 
-// Generation reports the engine generation the agent runs on: 2 for the
-// base model, or the generation of its tuned .cact archive.
+// Generation reports the engine generation the agent runs on: the selected
+// base model generation, or the generation of its tuned .cact archive.
 func (a *Agent) Generation() int { return a.generation }
 
 // Tuned reports whether the agent runs tuned weights.

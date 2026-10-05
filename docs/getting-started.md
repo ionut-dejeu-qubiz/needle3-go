@@ -89,6 +89,15 @@ func main() {
 }
 ```
 
+Needle 2 is the default engine generation. Select Needle 3 explicitly:
+
+```go
+agent, err := needle.New(
+    needle.WithGeneration(3),
+    needle.WithTools(getWeather),
+)
+```
+
 Running it:
 
 ```sh

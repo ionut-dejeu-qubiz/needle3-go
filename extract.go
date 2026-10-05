@@ -71,6 +71,9 @@ func ExtractRaw(ctx context.Context, text string, schema any, opts ...ExtractOpt
 // ExtractWeights to inherit a tuned archive.
 func (a *Agent) ExtractRaw(ctx context.Context, text string, schema any, opts ...ExtractOption) (map[string]any, error) {
 	cfg := newExtractConfig(opts)
+	if cfg.generation == 0 {
+		cfg.generation = a.generation
+	}
 	if cfg.weightsPath == "" && a.tuned {
 		cfg.weightsPath = a.weightsPath
 	}
@@ -170,6 +173,8 @@ func runExtraction(ctx context.Context, text string, params map[string]any, cfg 
 	}
 	if cfg.weightsPath != "" {
 		opts = append(opts, WithWeights(cfg.weightsPath))
+	} else if cfg.generation != 0 {
+		opts = append(opts, WithGeneration(cfg.generation))
 	}
 	if cfg.enginePath != "" {
 		opts = append(opts, WithEnginePath(cfg.enginePath))

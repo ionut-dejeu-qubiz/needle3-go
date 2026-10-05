@@ -76,6 +76,7 @@ Behavioural notes:
 | `WithTools(tools ...any)` | Declares the toolset: `*Tool` values, raw schema maps, a JSON string, or a slice of any of these, mixed. |
 | `WithToolsJSON(toolsJSON string)` | Declares the toolset from the engine's native JSON array of schemas. |
 | `WithSystem(system string)` | Attaches environment facts (`date:`, `locale:`, `device:`, ...). |
+| `WithGeneration(generation int)` | Selects the base Needle engine generation. `WithWeights` selects generation from the archive instead. |
 | `WithWeights(path string)` | Runs a tuned `.cact` in its own worker process; the archive tag selects the engine generation. |
 | `WithToolIndexPath(path string)` | Persists tool-retrieval embeddings for catalogues larger than five tools. |
 | `WithBufferSize(size int)` | Response buffer size in bytes (default 65536). |
@@ -91,6 +92,7 @@ Behavioural notes:
 | `RunMaxTokens(n)` | `Run` | Per-round token cap (default 256). |
 | `RunStrict(false)` | `Run` | Execute calls even when arguments are flagged ungrounded (default strict). |
 | `ExtractSystem(s)` | `Extract*` | System facts for the one-shot agent. |
+| `ExtractGeneration(generation)` | `Extract*` | Selects the base Needle engine generation. |
 | `ExtractMaxTokens(n)` | `Extract*` | Token cap (default 256). |
 | `ExtractStrict(false)` | `Extract*` | Return ungrounded values instead of raising (default strict). |
 | `ExtractWeights(path)` | `Extract*` | Extract against a tuned `.cact`. |

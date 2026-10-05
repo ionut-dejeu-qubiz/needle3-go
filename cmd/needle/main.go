@@ -29,7 +29,7 @@ import (
 func main() {
 	cmd := &cli.Command{
 		Name:    "needle",
-		Usage:   "on-device tool calling with the Needle 2 engine",
+		Usage:   "on-device tool calling with the Needle engine",
 		Version: needle.Version,
 		Description: "Fetches and caches the native Needle inference engine, " +
 			"downloads weights and standalone platform builds from the Hugging Face Hub, " +
@@ -182,6 +182,11 @@ func runCommand() *cli.Command {
 				Usage: "tuned .cact to run (default: the base model)",
 			},
 			&cli.IntFlag{
+				Name:  "generation",
+				Value: needle.EngineGeneration,
+				Usage: "base Needle engine generation",
+			},
+			&cli.IntFlag{
 				Name:  "max",
 				Value: 256,
 				Usage: "response token limit",
@@ -220,6 +225,8 @@ func runAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	if weights := cmd.String("weights"); weights != "" {
 		opts = append(opts, needle.WithWeights(weights))
+	} else {
+		opts = append(opts, needle.WithGeneration(cmd.Int("generation")))
 	}
 
 	runCtx, cancel := context.WithTimeout(ctx, cmd.Duration("timeout"))

@@ -1,10 +1,10 @@
 # needle-go
 
-**A pure-Go library for the Needle 2 on-device model — tool calling, structured
+**A pure-Go library for Needle on-device models — tool calling, structured
 extraction and conversational agents in about 28 MB of RAM.**
 
-Needle 2 is an open 45M-parameter model for tool calling, device use and structured
-extraction. The whole model is a single ~14 MB native engine: text goes in, a
+Needle 2 and Needle 3 are open models for tool calling, device use and structured
+extraction. Each model uses its own native engine: text goes in, a
 grammar-constrained JSON tool call comes back.
 
 This library is a rewrite of the [original Python needle
@@ -48,6 +48,9 @@ import "github.com/FlameInTheDark/needle-go"
 
 The package name is `needle`, so the calls read `needle.New`, `needle.WithTools`,
 `needle.Extract`, and so on.
+
+Needle 2 is default for compatibility. Select Needle 3 with
+`needle.WithGeneration(3)` or `needle run --generation 3`.
 
 ## Quickstart
 
@@ -123,6 +126,7 @@ Runnable programs for every feature live in [`examples/`](examples/):
 | `extraction` | typed, raw and strict extraction |
 | `catalog` | more than five tools, retrieval, persistent tool index |
 | `smart_home` | a complete smart-home environment with a 32-case acceptance suite |
+| `needle3` | a base Needle 3 agent selected with `WithGeneration(3)` |
 | `weights` | an agent running a tuned `.cact` archive |
 
 ```sh

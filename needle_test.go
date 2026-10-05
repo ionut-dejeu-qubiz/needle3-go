@@ -20,6 +20,23 @@ type weatherArgs struct {
 	City string `needle:"city" desc:"city name" required:"true"`
 }
 
+func TestGenerationSelection(t *testing.T) {
+	agent, err := New(WithGeneration(3))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer agent.Close()
+	if agent.Generation() != 3 {
+		t.Fatalf("generation = %d, want 3", agent.Generation())
+	}
+}
+
+func TestGenerationSelectionRejectsUnsupported(t *testing.T) {
+	if _, err := New(WithGeneration(4)); err == nil {
+		t.Fatal("expected unsupported generation error")
+	}
+}
+
 func engineAvailable(t *testing.T) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
