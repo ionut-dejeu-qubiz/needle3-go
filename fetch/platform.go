@@ -76,6 +76,16 @@ func LibNameForTag(tag string) string {
 	}
 }
 
+func libNameForGeneration(generation int, tag string) string {
+	name := LibNameForTag(tag)
+	if generation == 2 {
+		return name
+	}
+	ext := filepath.Ext(name)
+	stem := strings.TrimSuffix(name, ext)
+	return fmt.Sprintf("%s%d%s", stem, generation, ext)
+}
+
 // PlatformTag returns the wheel platform tag matching the current machine,
 // e.g. manylinux2014_x86_64, musllinux_1_2_aarch64, win_amd64 or
 // macosx_11_0_arm64. An error is returned for machines without a published

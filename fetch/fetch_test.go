@@ -88,6 +88,12 @@ func TestLibNameForTag(t *testing.T) {
 	if LibNameForTag("manylinux2014_x86_64") != "libneedle.so" {
 		t.Error("linux tag should map to so")
 	}
+	if got := libNameForGeneration(3, "win_amd64"); got != "libneedle3.dll" {
+		t.Errorf("generation 3 Windows library = %q", got)
+	}
+	if got := libNameForGeneration(2, "win_amd64"); got != "libneedle.dll" {
+		t.Errorf("generation 2 Windows library = %q", got)
+	}
 }
 
 func TestValidPlatform(t *testing.T) {
@@ -119,6 +125,8 @@ func TestLibraryPathEnvOverride(t *testing.T) {
 
 func TestLibraryPathLegacyEnvOverride(t *testing.T) {
 	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	t.Setenv("USERPROFILE", dir)
 	lib := filepath.Join(dir, LibName())
 	if err := os.WriteFile(lib, []byte("stub"), 0o644); err != nil {
 		t.Fatal(err)
@@ -132,8 +140,8 @@ func TestLibraryPathLegacyEnvOverride(t *testing.T) {
 		t.Errorf("LibraryPath = %q, want %q (legacy alias)", got, lib)
 	}
 	// The legacy alias must never serve generation 3.
-	if _, err := LibraryPath(context.Background(), 3); err == nil {
-		t.Error("generation 3 must not resolve through the legacy variable")
+	if got := envOverride(3); got != "" {
+		t.Errorf("generation 3 resolved through legacy variable: %q", got)
 	}
 }
 

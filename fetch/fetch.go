@@ -65,7 +65,7 @@ func LibraryPath(ctx context.Context, generation int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	cached := filepath.Join(cacheDir, LibName())
+	cached := filepath.Join(cacheDir, localLibNames(generation)[0])
 	if _, err := os.Stat(cached); err == nil {
 		return cached, nil
 	}
@@ -78,6 +78,41 @@ func LibraryPath(ctx context.Context, generation int) (string, error) {
 		return "", err
 	}
 	return FetchLibrary(ctx, generation, version, "", cacheDir)
+}
+
+// BaseWeightsPath resolves the published base weights archive for a
+// generation, downloading it into the generation's engine cache when needed.
+func BaseWeightsPath(ctx context.Context, generation int) (string, error) {
+	repo, err := EngineRepo(generation)
+	if err != nil {
+		return "", err
+	}
+	name, ok := map[int]string{3: "needle3.cact"}[generation]
+	if !ok {
+		return "", fmt.Errorf("unsupported base weights for Needle generation: %d", generation)
+	}
+	version, err := EngineVersion(generation)
+	if err != nil {
+		return "", err
+	}
+	dir, err := CacheDirFor(generation, version)
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, name)
+	if _, err := os.Stat(path); err == nil {
+		return path, nil
+	}
+	if Offline() {
+		return "", fmt.Errorf("needle: base weights for generation %d not found and HF_HUB_OFFLINE=1 prevents downloading; place %s in %s", generation, name, dir)
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	if _, err := client().downloadToFile(ctx, name, resolveURL(repo, name), path, false); err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
 func envOverrideName(generation int) string {
@@ -140,9 +175,9 @@ func FetchLibrary(ctx context.Context, generation int, version, tag, destDir str
 		return "", fmt.Errorf("needle: cannot fetch engine wheel %s: %w", wheel, err)
 	}
 	defer os.Remove(wheelPath)
-	libName := LibNameForTag(tag)
+	libName := libNameForGeneration(generation, tag)
 	if tag == mustPlatformTag() {
-		libName = LibName()
+		libName = localLibNames(generation)[0]
 	}
 	return extractWheelLibrary(wheelPath, libName, destDir)
 }

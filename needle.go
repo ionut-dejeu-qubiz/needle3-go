@@ -147,6 +147,20 @@ func (a *Agent) bind(ctx context.Context) error {
 		a.prefix = worker.PrefixTokens()
 		return nil
 	}
+	if a.generation == 3 {
+		weightsPath, err := fetch.BaseWeightsPath(ctx, a.generation)
+		if err != nil {
+			return err
+		}
+		worker, err := engine.StartWorker(ctx, libPath, weightsPath,
+			a.system, a.toolsJSON, a.toolIndexPath, a.bufSize, a.generation)
+		if err != nil {
+			return err
+		}
+		a.backend = worker
+		a.prefix = worker.PrefixTokens()
+		return nil
+	}
 	session, err := engine.NewInproc(libPath, a.generation, a.system,
 		a.toolsJSON, a.toolIndexPath, a.bufSize)
 	if err != nil {
