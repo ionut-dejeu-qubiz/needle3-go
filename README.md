@@ -124,6 +124,7 @@ Runnable programs for every feature live in [`examples/`](examples/):
 | `weather` | the smallest complete agent |
 | `conversation` | manual loop with `Complete`, follow-ups, confidence gating, reset |
 | `extraction` | typed, raw and strict extraction |
+| `needle3-extraction` | typed text extraction with Needle 3 |
 | `catalog` | more than five tools, retrieval, persistent tool index |
 | `smart_home` | a complete smart-home environment with a 32-case acceptance suite |
 | `needle3` | a base Needle 3 agent selected with `WithGeneration(3)` |

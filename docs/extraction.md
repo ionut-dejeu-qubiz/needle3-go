@@ -154,3 +154,4 @@ explicitly.
 - The tag vocabulary for record structs: [Building tools](tools.md)
 - The validation machinery behind strict mode: [Responses](responses.md#validation-grounding)
 - Runnable code: [extraction example](../examples/extraction/main.go)
+- Needle 3 text extraction: [Needle 3 extraction example](../examples/needle3-extraction/main.go)

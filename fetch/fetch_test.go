@@ -94,6 +94,9 @@ func TestLibNameForTag(t *testing.T) {
 	if got := libNameForGeneration(2, "win_amd64"); got != "libneedle.dll" {
 		t.Errorf("generation 2 Windows library = %q", got)
 	}
+	if got := localLibNames(2)[0]; got != LibName() {
+		t.Errorf("generation 2 local library = %q, want %q", got, LibName())
+	}
 }
 
 func TestValidPlatform(t *testing.T) {

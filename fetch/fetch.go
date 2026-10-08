@@ -139,11 +139,10 @@ func envOverride(generation int) string {
 func localLibNames(generation int) []string {
 	lib := LibName()
 	stem, suffix := strings.TrimSuffix(lib, filepath.Ext(lib)), filepath.Ext(lib)
-	names := []string{fmt.Sprintf("%s%d%s", stem, generation, suffix)}
 	if generation == 2 {
-		names = append(names, lib)
+		return []string{lib, fmt.Sprintf("%s%d%s", stem, generation, suffix)}
 	}
-	return names
+	return []string{fmt.Sprintf("%s%d%s", stem, generation, suffix)}
 }
 
 // FetchLibrary downloads the engine package for a platform tag (the
